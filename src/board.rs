@@ -83,12 +83,30 @@ impl Board {
             .collect()
     }
 
+    pub fn enum_col(&self, col_index: usize) -> Vec<((usize, usize), &Cell)> {
+        self.board
+            .iter()
+            .enumerate()
+            .map(|(row_index, row)| ((row_index, col_index), row.get(col_index).unwrap()))
+            .collect()
+    }
+
     pub fn row(&self, index: usize) -> Vec<&Cell> {
         self.board.get(index).unwrap().iter().collect()
     }
 
     pub fn row_mut(&mut self, index: usize) -> Vec<&mut Cell> {
         self.board.get_mut(index).unwrap().iter_mut().collect()
+    }
+
+    pub fn enum_row(&self, row_index: usize) -> Vec<((usize, usize), &Cell)> {
+        self.board
+            .get(row_index)
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(col_index, cell)| ((row_index, col_index), cell))
+            .collect()
     }
 
     pub fn get(&self, row: usize, col: usize) -> &Cell {
@@ -143,8 +161,34 @@ impl Board {
             .collect()
     }
 
-    pub fn is_solved(&self) -> bool {
-        self.board.iter().flatten().all(Cell::is_known)
+    pub fn enum_group(&self, row: usize, col: usize) -> Vec<((usize, usize), &Cell)> {
+        self.board
+            .iter()
+            .enumerate()
+            .filter_map(|(row_i, vals)| {
+                if row_i >= row * 3 && row_i < row * 3 + 3 {
+                    Some((row_i, vals))
+                } else {
+                    None
+                }
+            })
+            .flat_map(|(row_i, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(move |(col_i, cell)| ((row_i, col_i), cell))
+            })
+            .filter_map(|((row_i, col_i), cell)| {
+                if col_i >= col * 3 && col_i < col * 3 + 3 {
+                    Some(((row_i, col_i), cell))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn num_unsolved(&self) -> usize {
+        self.board.iter().flatten().filter(|cell| !cell.is_known()).count()
     }
 
     pub fn is_correct(&self) -> bool {

@@ -3,67 +3,51 @@ mod board;
 use board::{Board, Cell};
 
 fn fixed(board: &mut Board) {
-    *board.get_mut(0, 2) = Cell::Known(4);
-    *board.get_mut(0, 3) = Cell::Known(8);
-    *board.get_mut(0, 5) = Cell::Known(5);
-    *board.get_mut(0, 6) = Cell::Known(7);
-    *board.get_mut(0, 8) = Cell::Known(6);
+    let str = r"351600084
+009801000
+080040000
+090010000
+000000020
+700020501
+000050002
+073004090
+120000705";
+    str.lines()
+        .enumerate()
+        .for_each(|(row_index, line)| parse_line(line, row_index, board));
+}
 
-    *board.get_mut(1, 3) = Cell::Known(9);
-    *board.get_mut(1, 7) = Cell::Known(4);
-
-    *board.get_mut(2, 1) = Cell::Known(2);
-    *board.get_mut(2, 3) = Cell::Known(4);
-    *board.get_mut(2, 8) = Cell::Known(1);
-
-    *board.get_mut(3, 0) = Cell::Known(8);
-    *board.get_mut(3, 3) = Cell::Known(7);
-    *board.get_mut(3, 5) = Cell::Known(3);
-    *board.get_mut(3, 7) = Cell::Known(6);
-
-    *board.get_mut(4, 2) = Cell::Known(6);
-    *board.get_mut(4, 5) = Cell::Known(1);
-    *board.get_mut(4, 6) = Cell::Known(5);
-
-    *board.get_mut(5, 0) = Cell::Known(2);
-    *board.get_mut(5, 5) = Cell::Known(8);
-    *board.get_mut(5, 6) = Cell::Known(4);
-    *board.get_mut(5, 7) = Cell::Known(7);
-
-    *board.get_mut(6, 1) = Cell::Known(4);
-    *board.get_mut(6, 3) = Cell::Known(5);
-    *board.get_mut(6, 5) = Cell::Known(6);
-
-    *board.get_mut(7, 0) = Cell::Known(5);
-    *board.get_mut(7, 6) = Cell::Known(6);
-    *board.get_mut(7, 7) = Cell::Known(8);
-
-    *board.get_mut(8, 3) = Cell::Known(1);
-    *board.get_mut(8, 7) = Cell::Known(5);
-    *board.get_mut(8, 8) = Cell::Known(4);
+fn parse_line(input: &str, row_index: usize, board: &mut Board) {
+    input
+        .trim()
+        .chars()
+        .map(|char| {
+            char.to_digit(10)
+                .unwrap_or_else(|| panic!("failed to parse: {char}"))
+        })
+        .enumerate()
+        .for_each(|(col_index, number)| {
+            if number != 0 {
+                *board.get_mut(row_index, col_index) = Cell::Known(number as u8);
+            }
+        })
 }
 
 fn player_entered(board: &mut Board) {
     for row in 0..9 {
-        for col in 0..9 {
-            let mut str = String::new();
-            std::io::stdin().read_line(&mut str).unwrap();
-            if str.trim().eq("0") {
-                continue;
-            } else {
-                *board.get_mut(row, col) = Cell::Known(str.trim().parse().unwrap());
-            }
-        }
+        let mut str = String::new();
+        std::io::stdin().read_line(&mut str).unwrap();
+        parse_line(str.trim(), row, board);
     }
 }
 
 fn main() {
     let mut board = Board::default();
 
-    //fixed(&mut board);
-    player_entered(&mut board);
+    fixed(&mut board);
+    //player_entered(&mut board);
 
-    while !board.is_solved() {
+    while board.num_unsolved() > 0 {
         let mut updated = false;
         for row in 0..9 {
             if handle_collection(board.row_mut(row)) {
@@ -85,10 +69,18 @@ fn main() {
             }
         }
 
+        // TODO: Handle hidden and obvious pairs
+        // TODO: Handle hidden and obvious tripples
+
+        if handle_pointing(&mut board) {
+            updated = true;
+        }
+
         if updated {
             println!("updated");
         } else {
             dbg!(&board);
+            println!("Num unsolved: {}", board.num_unsolved());
             return;
         }
     }
@@ -99,6 +91,88 @@ fn main() {
     } else {
         println!("Solution is invalid!");
     }
+}
+
+fn handle_pointing(board: &mut Board) -> bool {
+    let mut updated = false;
+    for group_row in 0..3 {
+        for group_col in 0..3 {
+            let present: Vec<u8> = board
+                .group(group_row, group_col)
+                .iter()
+                .filter_map(|cell| match **cell {
+                    Cell::Known(val) => Some(val),
+                    Cell::Possible(_) => None,
+                })
+                .collect();
+
+            for missing in 1..=9 {
+                if present.contains(&missing) {
+                    continue;
+                }
+                let found: Vec<(usize, usize)> = board
+                    .enum_group(group_row, group_col)
+                    .iter()
+                    .filter_map(|(pos, cell)| match cell {
+                        Cell::Known(_) => None,
+                        Cell::Possible(values) => {
+                            if values.contains(&missing) {
+                                Some(*pos)
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .collect();
+
+                if found.is_empty() {
+                    continue;
+                }
+
+                let row = found[0].0;
+                let col = found[0].1;
+
+                let row_only = found.iter().all(|pos| pos.0 == row);
+                let col_only = found.iter().all(|pos| pos.1 == col);
+
+                if row_only {
+                    for col in 0..9 {
+                        if found.iter().any(|pos| pos.1 == col) {
+                            continue;
+                        }
+                        match board.get_mut(row, col) {
+                            Cell::Known(_) => {},
+                            Cell::Possible(values) => {
+                                let len = values.len();
+                                values.retain(|val| *val != missing);
+                                if len != values.len() {
+                                    updated = true;
+                                }
+                            },
+                        }
+                    }
+                }
+                if col_only {
+                    for row in 0..9 {
+                        if found.iter().any(|pos| pos.0 == row) {
+                            continue;
+                        }
+                        match board.get_mut(row, col) {
+                            Cell::Known(_) => {},
+                            Cell::Possible(values) => {
+                                let len = values.len();
+                                values.retain(|val| *val != missing);
+                                if len != values.len() {
+                                    updated = true;
+                                }
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    }
+    updated
 }
 
 fn handle_collection(mut cells: Vec<&mut Cell>) -> bool {
