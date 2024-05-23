@@ -199,9 +199,44 @@ impl Board {
             .collect()
     }
 
+    pub fn enum_group_mut(&mut self, row: usize, col: usize) -> Vec<((usize, usize), &mut Cell)> {
+        self.board
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(row_i, vals)| {
+                if row_i >= row * 3 && row_i < row * 3 + 3 {
+                    Some((row_i, vals))
+                } else {
+                    None
+                }
+            })
+            .flat_map(|(row_i, row)| {
+                row.iter_mut()
+                    .enumerate()
+                    .map(move |(col_i, cell)| ((row_i, col_i), cell))
+            })
+            .filter_map(|((row_i, col_i), cell)| {
+                if col_i >= col * 3 && col_i < col * 3 + 3 {
+                    Some(((row_i, col_i), cell))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// Returns the number of cells that are not Cell::Known
     pub fn num_unsolved(&self) -> usize {
         self.board.iter().flatten().filter(|cell| !cell.is_known()).count()
+    }
+
+    pub fn num_possible_values(&self) -> usize {
+        self.board.iter().flatten().map(|cell| {
+            match cell {
+                Cell::Known(_) => 0,
+                Cell::Possible(values) => values.len(),
+            }
+        }).sum()
     }
 
     /// Returns true if all rows, cols, and groups contain the values 1..=9
