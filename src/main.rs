@@ -1,5 +1,7 @@
 mod board;
 
+use std::collections::HashSet;
+
 use board::{Board, Cell};
 
 fn fixed(board: &mut Board) {
@@ -41,6 +43,38 @@ fn player_entered(board: &mut Board) {
     }
 }
 
+fn make_pairs_from_valid_options(options: &[u8]) -> Vec<(u8, u8)> {
+    let mut set = HashSet::new();
+    for a in options {
+        for b in options {
+            if a != b {
+                if a < b {
+                    set.insert((*a, *b));
+                } else {
+                    set.insert((*b, *a));
+                }
+            }
+        }
+    }
+    set.into_iter().collect()
+}
+
+fn make_tripples_from_valid_options(options: &[u8]) -> Vec<(u8, u8, u8)> {
+    let mut set = HashSet::new();
+    for a in options {
+        for b in options {
+            for c in options {
+                if a != b && a != c && b != c {
+                    let mut tripple = [*a, *b, *c];
+                    tripple.sort();
+                    set.insert((tripple[0], tripple[1], tripple[2]));
+                }
+            }
+        }
+    }
+    set.into_iter().collect()
+}
+
 fn main() {
     let mut board = Board::default();
 
@@ -53,10 +87,22 @@ fn main() {
             if handle_collection(board.row_mut(row)) {
                 updated = true;
             }
+            if handle_pairs(board.enum_row_mut(row)) {
+                updated = true;
+            }
+            if handle_tripples(board.enum_row_mut(row)) {
+                updated = true;
+            }
         }
 
         for col in 0..9 {
             if handle_collection(board.col_mut(col)) {
+                updated = true;
+            }
+            if handle_pairs(board.enum_col_mut(col)) {
+                updated = true;
+            }
+            if handle_tripples(board.enum_col_mut(col)) {
                 updated = true;
             }
         }
@@ -66,11 +112,15 @@ fn main() {
                 if handle_collection(board.group_mut(group_y, group_x)) {
                     updated = true;
                 }
+                if handle_pairs(board.enum_group_mut(group_y, group_x)) {
+                    updated = true;
+                }
+                if handle_tripples(board.enum_group_mut(group_y, group_x)) {
+                    updated = true;
+                }
             }
         }
 
-        // TODO: Handle hidden and obvious pairs
-        // TODO: Handle hidden and obvious tripples
         // TODO: Handle X-wing
         // TODO: Handle Y-wing
         // TODO: Handle Swordfish
@@ -88,9 +138,17 @@ fn main() {
             updated = true;
         }
 
+        if board.contains_bad_cells() {
+            println!("Contains bad cells");
+            println!("{}", board.to_string());
+            dbg!(&board);
+            return;
+        }
+
         if updated {
-            println!("updated");
+            //println!("updated");
         } else {
+            println!("{}", board.to_string());
             dbg!(&board);
             println!("Num unsolved: {}", board.num_unsolved());
             println!("Num possible values: {}", board.num_possible_values());
@@ -101,9 +159,122 @@ fn main() {
     println!("Done!");
     if board.is_correct() {
         println!("Solution is correct!");
+        println!("{}", board.to_string());
     } else {
         println!("Solution is invalid!");
     }
+}
+
+fn handle_pairs(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
+    let mut updated = false;
+    // Get a list of all values currently known in the collection
+    let present: Vec<u8> = cells
+        .iter()
+        .filter_map(|(_pos, cell)| match **cell {
+            Cell::Known(val) => Some(val),
+            Cell::Possible(_) => None,
+        })
+        .collect();
+
+    for (a, b) in make_pairs_from_valid_options(
+        &(1..=9)
+            .filter(|val| !present.contains(val))
+            .collect::<Vec<u8>>(),
+    ) {
+        let mut need_clear = false;
+        let mut only_pair = true;
+        let mut possible_matches = Vec::new();
+        for (pos, cell) in &cells {
+            match cell {
+                Cell::Known(_) => {}
+                Cell::Possible(possible) => {
+                    if possible.contains(&a) && possible.contains(&b) {
+                        possible_matches.push(*pos);
+                        if possible.len() > 2 {
+                            need_clear = true;
+                        }
+                    } else if possible.contains(&a) || possible.contains(&b) {
+                        only_pair = false;
+                    }
+                }
+            }
+        }
+
+        if possible_matches.len() == 2 && need_clear && only_pair {
+            for (_pos, cell) in &mut cells {
+                match cell {
+                    Cell::Known(_) => {}
+                    Cell::Possible(possible) => {
+                        if possible.contains(&a) && possible.contains(&b) {
+                            if possible.len() == 2 {
+                                continue;
+                            }
+                            possible.retain(|val| *val == a || *val == b);
+                            updated = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    updated
+}
+
+fn handle_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
+    let mut updated = false;
+    // Get a list of all values currently known in the collection
+    let present: Vec<u8> = cells
+        .iter()
+        .filter_map(|(_pos, cell)| match **cell {
+            Cell::Known(val) => Some(val),
+            Cell::Possible(_) => None,
+        })
+        .collect();
+
+    for (a, b, c) in make_tripples_from_valid_options(
+        &(1..=9)
+            .filter(|val| !present.contains(val))
+            .collect::<Vec<u8>>(),
+    ) {
+        let mut need_clear = false;
+        let mut only_pair = true;
+        let mut possible_matches = Vec::new();
+        for (pos, cell) in &cells {
+            match cell {
+                Cell::Known(_) => {}
+                Cell::Possible(possible) => {
+                    if possible.contains(&a) && possible.contains(&b) && possible.contains(&c) {
+                        possible_matches.push(*pos);
+                        if possible.len() > 3 {
+                            need_clear = true;
+                        }
+                    } else if possible.contains(&a) || possible.contains(&b) {
+                        only_pair = false;
+                    }
+                }
+            }
+        }
+
+        if possible_matches.len() == 3 && need_clear && only_pair {
+            for (_pos, cell) in &mut cells {
+                match cell {
+                    Cell::Known(_) => {}
+                    Cell::Possible(possible) => {
+                        if possible.contains(&a) && possible.contains(&b) && possible.contains(&c) {
+                            if possible.len() == 3 {
+                                continue;
+                            }
+                            possible.retain(|val| *val == a || *val == b || *val == c);
+                            updated = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    updated
 }
 
 // If the only possible positions for a value in a row are in the same group, remove that
@@ -142,6 +313,10 @@ fn handle_blocking_row(board: &mut Board) -> bool {
                 })
                 .collect();
 
+            if found.is_empty() {
+                continue;
+            }
+
             let group_row = found[0].0 / 3;
             let group_col = found[0].1 / 3;
 
@@ -151,22 +326,25 @@ fn handle_blocking_row(board: &mut Board) -> bool {
                 .iter()
                 .all(|(row, col)| row / 3 == group_row && col / 3 == group_col)
             {
-                board.enum_group_mut(group_row, group_col).iter_mut().for_each(|(pos, cell)| {
-                    if pos.0 == row {
-                        return;
-                    }
-                    match cell {
-                        Cell::Known(_) => {},
-                        Cell::Possible(possible) => {
-                            let len = possible.len();
-                            possible.retain(|val| *val != missing);
-                            if len != possible.len() {
-                                updated = true;
-                                cell.check();
+                board
+                    .enum_group_mut(group_row, group_col)
+                    .iter_mut()
+                    .for_each(|(pos, cell)| {
+                        if pos.0 == row {
+                            return;
+                        }
+                        match cell {
+                            Cell::Known(_) => {}
+                            Cell::Possible(possible) => {
+                                let len = possible.len();
+                                possible.retain(|val| *val != missing);
+                                if len != possible.len() {
+                                    updated = true;
+                                    cell.check();
+                                }
                             }
-                        },
-                    }
-                })
+                        }
+                    })
             }
         }
     }
@@ -210,6 +388,10 @@ fn handle_blocking_col(board: &mut Board) -> bool {
                 })
                 .collect();
 
+            if found.is_empty() {
+                continue;
+            }
+
             let group_row = found[0].0 / 3;
             let group_col = found[0].1 / 3;
 
@@ -219,22 +401,25 @@ fn handle_blocking_col(board: &mut Board) -> bool {
                 .iter()
                 .all(|(row, col)| row / 3 == group_row && col / 3 == group_col)
             {
-                board.enum_group_mut(group_row, group_col).iter_mut().for_each(|(pos, cell)| {
-                    if pos.1 == col {
-                        return;
-                    }
-                    match cell {
-                        Cell::Known(_) => {},
-                        Cell::Possible(possible) => {
-                            let len = possible.len();
-                            possible.retain(|val| *val != missing);
-                            if len != possible.len() {
-                                updated = true;
-                                cell.check();
+                board
+                    .enum_group_mut(group_row, group_col)
+                    .iter_mut()
+                    .for_each(|(pos, cell)| {
+                        if pos.1 == col {
+                            return;
+                        }
+                        match cell {
+                            Cell::Known(_) => {}
+                            Cell::Possible(possible) => {
+                                let len = possible.len();
+                                possible.retain(|val| *val != missing);
+                                if len != possible.len() {
+                                    updated = true;
+                                    cell.check();
+                                }
                             }
-                        },
-                    }
-                })
+                        }
+                    })
             }
         }
     }
@@ -278,6 +463,10 @@ fn handle_pointing(board: &mut Board) -> bool {
                         }
                     })
                     .collect();
+
+                if found.is_empty() {
+                    continue;
+                }
 
                 let row = found[0].0;
                 let col = found[0].1;

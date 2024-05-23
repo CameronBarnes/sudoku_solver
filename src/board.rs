@@ -97,6 +97,14 @@ impl Board {
             .collect()
     }
 
+    pub fn enum_col_mut(&mut self, col_index: usize) -> Vec<((usize, usize), &mut Cell)> {
+        self.board
+            .iter_mut()
+            .enumerate()
+            .map(|(row_index, row)| ((row_index, col_index), row.get_mut(col_index).unwrap()))
+            .collect()
+    }
+
     /// Returns a Vec<&Cell> referencing all the Cells in the requested row
     pub fn row(&self, index: usize) -> Vec<&Cell> {
         self.board.get(index).unwrap().iter().collect()
@@ -112,6 +120,16 @@ impl Board {
             .get(row_index)
             .unwrap()
             .iter()
+            .enumerate()
+            .map(|(col_index, cell)| ((row_index, col_index), cell))
+            .collect()
+    }
+
+    pub fn enum_row_mut(&mut self, row_index: usize) -> Vec<((usize, usize), &mut Cell)> {
+        self.board
+            .get_mut(row_index)
+            .unwrap()
+            .iter_mut()
             .enumerate()
             .map(|(col_index, cell)| ((row_index, col_index), cell))
             .collect()
@@ -239,6 +257,15 @@ impl Board {
         }).sum()
     }
 
+    pub fn contains_bad_cells(&self) -> bool {
+        self.board.iter().flatten().map(|cell| {
+            match cell {
+                Cell::Known(_) => false,
+                Cell::Possible(values) => values.is_empty(),
+            }
+        }).any(|val| val)
+    }
+
     /// Returns true if all rows, cols, and groups contain the values 1..=9
     pub fn is_correct(&self) -> bool {
         self.rows().iter().all(|row| {
@@ -258,5 +285,25 @@ impl Board {
                 .filter_map(|cell| cell.value())
                 .all(|val| val <= 9 && check.insert(val))
         })
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut out = String::new();
+        for row in 0..9 {
+            self.row(row).iter().for_each(|cell| {
+                out.push_str(&match cell {
+                    Cell::Known(value) => value.to_string(),
+                    Cell::Possible(values) => {
+                        if values.is_empty() {
+                            String::from("X")
+                        } else {
+                            String::from("?")
+                        }
+                    },
+                });
+            });
+            out.push('\n');
+        }
+        out
     }
 }
