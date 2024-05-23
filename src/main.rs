@@ -3,15 +3,15 @@ mod board;
 use board::{Board, Cell};
 
 fn fixed(board: &mut Board) {
-    let str = r"351600084
-009801000
-080040000
-090010000
-000000020
-700020501
-000050002
-073004090
-120000705";
+    let str = r"060000040
+090170000
+005000001
+000030500
+000059600
+000000824
+802500000
+000002000
+400008006";
     str.lines()
         .enumerate()
         .for_each(|(row_index, line)| parse_line(line, row_index, board));
@@ -71,6 +71,10 @@ fn main() {
 
         // TODO: Handle hidden and obvious pairs
         // TODO: Handle hidden and obvious tripples
+        // TODO: Handle the row and col equivalent of pointing pairs and tripples
+        // TODO: Handle X-wing
+        // TODO: Handle Swordfish
+        // TODO: Handle guessing
 
         if handle_pointing(&mut board) {
             updated = true;
@@ -93,10 +97,13 @@ fn main() {
     }
 }
 
+/// If only a single row or col in a group contains cells with a possible number, remove that
+/// possible number from all cells in that row or col outside the group
 fn handle_pointing(board: &mut Board) -> bool {
     let mut updated = false;
     for group_row in 0..3 {
         for group_col in 0..3 {
+            // List of all known values in the group
             let present: Vec<u8> = board
                 .group(group_row, group_col)
                 .iter()
@@ -110,6 +117,7 @@ fn handle_pointing(board: &mut Board) -> bool {
                 if present.contains(&missing) {
                     continue;
                 }
+                // List of all cells in the group that contain the missing value as a possible value
                 let found: Vec<(usize, usize)> = board
                     .enum_group(group_row, group_col)
                     .iter()
@@ -132,9 +140,12 @@ fn handle_pointing(board: &mut Board) -> bool {
                 let row = found[0].0;
                 let col = found[0].1;
 
+                // If all the cells found are in the same row or col, then they're a 'pointing'
+                // pair or tripple and we'll remove them from all other cells in the row or col
                 let row_only = found.iter().all(|pos| pos.0 == row);
                 let col_only = found.iter().all(|pos| pos.1 == col);
 
+                // Handle a pointing pair/tripple in a row
                 if row_only {
                     for col in 0..9 {
                         if found.iter().any(|pos| pos.1 == col) {
@@ -154,6 +165,7 @@ fn handle_pointing(board: &mut Board) -> bool {
                         cell.check();
                     }
                 }
+                // Handle a pointing pair/tripple in a col
                 if col_only {
                     for row in 0..9 {
                         if found.iter().any(|pos| pos.0 == row) {
@@ -181,6 +193,7 @@ fn handle_pointing(board: &mut Board) -> bool {
 
 fn handle_collection(mut cells: Vec<&mut Cell>) -> bool {
     let mut updated = false;
+    // Get a list of all values currently known in the collection
     let mut present: Vec<u8> = cells
         .iter()
         .filter_map(|cell| match **cell {
@@ -188,6 +201,8 @@ fn handle_collection(mut cells: Vec<&mut Cell>) -> bool {
             Cell::Possible(_) => None,
         })
         .collect();
+    // Remove the known present values from the list of possible values for all cells in this
+    // collection
     for cell in &mut cells {
         let known = cell.is_known();
         match cell {
@@ -206,6 +221,8 @@ fn handle_collection(mut cells: Vec<&mut Cell>) -> bool {
         }
     }
 
+    // If only one cell in a collection has a value listed as possible, that cell must be that
+    // value
     for missing in 1..=9 {
         if present.contains(&missing) {
             continue;
