@@ -140,16 +140,18 @@ fn handle_pointing(board: &mut Board) -> bool {
                         if found.iter().any(|pos| pos.1 == col) {
                             continue;
                         }
-                        match board.get_mut(row, col) {
-                            Cell::Known(_) => {},
+                        let cell = board.get_mut(row, col);
+                        match cell {
+                            Cell::Known(_) => {}
                             Cell::Possible(values) => {
                                 let len = values.len();
                                 values.retain(|val| *val != missing);
                                 if len != values.len() {
                                     updated = true;
                                 }
-                            },
+                            }
                         }
+                        cell.check();
                     }
                 }
                 if col_only {
@@ -157,16 +159,18 @@ fn handle_pointing(board: &mut Board) -> bool {
                         if found.iter().any(|pos| pos.0 == row) {
                             continue;
                         }
-                        match board.get_mut(row, col) {
-                            Cell::Known(_) => {},
+                        let cell = board.get_mut(row, col);
+                        match cell {
+                            Cell::Known(_) => {}
                             Cell::Possible(values) => {
                                 let len = values.len();
                                 values.retain(|val| *val != missing);
                                 if len != values.len() {
                                     updated = true;
                                 }
-                            },
+                            }
                         }
+                        cell.check();
                     }
                 }
             }
