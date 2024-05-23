@@ -13,6 +13,7 @@ impl Default for Cell {
 }
 
 impl Cell {
+    /// If this cell has only one possible `value`, set this cell to Known(`value`)
     pub fn check(&mut self) {
         match self {
             Cell::Known(_) => {}
@@ -24,6 +25,7 @@ impl Cell {
         }
     }
 
+    /// Returns true if enum is Cell::Known(_), false if enum is Cell::Possible(_)
     pub fn is_known(&self) -> bool {
         match self {
             Cell::Known(_) => true,
@@ -31,6 +33,8 @@ impl Cell {
         }
     }
 
+    /// Unpacks the `value` of a `Cell::Known(value)` as `Some(value)`. Returns
+    /// `None` if the enum is `Cell::Possible(_)`
     pub fn value(&self) -> Option<u8> {
         match self {
             Cell::Known(value) => Some(*value),
@@ -69,6 +73,7 @@ impl Board {
 }
 
 impl Board {
+    /// Returns a Vec<&Cell> referencing all the Cells in the requested col
     pub fn col(&self, index: usize) -> Vec<&Cell> {
         self.board
             .iter()
@@ -76,6 +81,7 @@ impl Board {
             .collect()
     }
 
+    /// Returns a Vec<&mut Cell> mutably referencing all the Cells in the requested col
     pub fn col_mut(&mut self, index: usize) -> Vec<&mut Cell> {
         self.board
             .iter_mut()
@@ -91,10 +97,12 @@ impl Board {
             .collect()
     }
 
+    /// Returns a Vec<&Cell> referencing all the Cells in the requested row
     pub fn row(&self, index: usize) -> Vec<&Cell> {
         self.board.get(index).unwrap().iter().collect()
     }
 
+    /// Returns a Vec<&mut Cell> mutably referencing all the Cells in the requested row
     pub fn row_mut(&mut self, index: usize) -> Vec<&mut Cell> {
         self.board.get_mut(index).unwrap().iter_mut().collect()
     }
@@ -109,14 +117,17 @@ impl Board {
             .collect()
     }
 
+    /// Returns a &Cell from the requested position
     pub fn get(&self, row: usize, col: usize) -> &Cell {
         &self.board[row][col]
     }
 
+    /// Returns a &mut Cell from the requested position
     pub fn get_mut(&mut self, row: usize, col: usize) -> &mut Cell {
         &mut self.board[row][col]
     }
 
+    /// Returns a Vec<&Cell> referencing all the Cells in the requested group
     pub fn group(&self, row: usize, col: usize) -> Vec<&Cell> {
         self.board
             .iter()
@@ -139,6 +150,7 @@ impl Board {
             .collect()
     }
 
+    /// Returns a Vec<&mut Cell> mutably referencing all the Cells in the requested group
     pub fn group_mut(&mut self, row: usize, col: usize) -> Vec<&mut Cell> {
         self.board
             .iter_mut()
@@ -187,10 +199,12 @@ impl Board {
             .collect()
     }
 
+    /// Returns the number of cells that are not Cell::Known
     pub fn num_unsolved(&self) -> usize {
         self.board.iter().flatten().filter(|cell| !cell.is_known()).count()
     }
 
+    /// Returns true if all rows, cols, and groups contain the values 1..=9
     pub fn is_correct(&self) -> bool {
         self.rows().iter().all(|row| {
             let mut check = HashSet::new();

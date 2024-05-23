@@ -99,6 +99,7 @@ fn main() {
 
 /// If only a single row or col in a group contains cells with a possible number, remove that
 /// possible number from all cells in that row or col outside the group
+/// This strategy is called pointing pairs and tripples
 fn handle_pointing(board: &mut Board) -> bool {
     let mut updated = false;
     for group_row in 0..3 {
