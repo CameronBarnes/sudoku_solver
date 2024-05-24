@@ -5,15 +5,15 @@ use std::collections::HashSet;
 use board::{Board, Cell};
 
 fn fixed(board: &mut Board) {
-    let str = r"060000040
-090170000
-005000001
-000030500
-000059600
-000000824
-802500000
-000002000
-400008006";
+    let str = r"000000300
+001007006
+540000008
+000708020
+060009050
+008000040
+000000080
+150300000
+200010007";
     str.lines()
         .enumerate()
         .for_each(|(row_index, line)| parse_line(line, row_index, board));
@@ -90,7 +90,7 @@ fn main() {
             if handle_pairs(board.enum_row_mut(row)) {
                 updated = true;
             }
-            if handle_tripples(board.enum_row_mut(row)) {
+            if handle_hidden_tripples(board.enum_row_mut(row)) {
                 updated = true;
             }
         }
@@ -102,7 +102,7 @@ fn main() {
             if handle_pairs(board.enum_col_mut(col)) {
                 updated = true;
             }
-            if handle_tripples(board.enum_col_mut(col)) {
+            if handle_hidden_tripples(board.enum_col_mut(col)) {
                 updated = true;
             }
         }
@@ -115,12 +115,13 @@ fn main() {
                 if handle_pairs(board.enum_group_mut(group_y, group_x)) {
                     updated = true;
                 }
-                if handle_tripples(board.enum_group_mut(group_y, group_x)) {
+                if handle_hidden_tripples(board.enum_group_mut(group_y, group_x)) {
                     updated = true;
                 }
             }
         }
 
+        // TODO: Handle Obvious Tripples
         // TODO: Handle X-wing
         // TODO: Handle Y-wing
         // TODO: Handle Swordfish
@@ -141,15 +142,17 @@ fn main() {
         if board.contains_bad_cells() {
             println!("Contains bad cells");
             println!("{}", board.to_string());
+            println!("Num unsolved: {}", board.num_unsolved());
             dbg!(&board);
             return;
         }
 
         if updated {
             //println!("updated");
+            //println!("\n{}\n", board.to_string());
         } else {
-            println!("{}", board.to_string());
             dbg!(&board);
+            println!("{}", board.to_string());
             println!("Num unsolved: {}", board.num_unsolved());
             println!("Num possible values: {}", board.num_possible_values());
             return;
@@ -221,7 +224,7 @@ fn handle_pairs(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
     updated
 }
 
-fn handle_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
+fn handle_hidden_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
     let mut updated = false;
     // Get a list of all values currently known in the collection
     let present: Vec<u8> = cells
@@ -249,7 +252,7 @@ fn handle_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
                         if possible.len() > 3 {
                             need_clear = true;
                         }
-                    } else if possible.contains(&a) || possible.contains(&b) {
+                    } else if possible.contains(&a) || possible.contains(&b) || possible.contains(&c) {
                         only_pair = false;
                     }
                 }
