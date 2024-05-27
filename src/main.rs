@@ -173,10 +173,7 @@ fn handle_pairs(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
     // Get a list of all values currently known in the collection
     let present: Vec<u8> = cells
         .iter()
-        .filter_map(|(_pos, cell)| match **cell {
-            Cell::Known(val) => Some(val),
-            Cell::Possible(_) => None,
-        })
+        .filter_map(|(_pos, cell)| cell.value())
         .collect();
 
     for (a, b) in make_pairs_from_valid_options(
@@ -229,10 +226,7 @@ fn handle_hidden_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
     // Get a list of all values currently known in the collection
     let present: Vec<u8> = cells
         .iter()
-        .filter_map(|(_pos, cell)| match **cell {
-            Cell::Known(val) => Some(val),
-            Cell::Possible(_) => None,
-        })
+        .filter_map(|(_pos, cell)| cell.value())
         .collect();
 
     for (a, b, c) in make_tripples_from_valid_options(
@@ -252,7 +246,10 @@ fn handle_hidden_tripples(mut cells: Vec<((usize, usize), &mut Cell)>) -> bool {
                         if possible.len() > 3 {
                             need_clear = true;
                         }
-                    } else if possible.contains(&a) || possible.contains(&b) || possible.contains(&c) {
+                    } else if possible.contains(&a)
+                        || possible.contains(&b)
+                        || possible.contains(&c)
+                    {
                         only_pair = false;
                     }
                 }
@@ -291,10 +288,7 @@ fn handle_blocking_row(board: &mut Board) -> bool {
         let present: Vec<u8> = board
             .row(row)
             .iter()
-            .filter_map(|cell| match **cell {
-                Cell::Known(val) => Some(val),
-                Cell::Possible(_) => None,
-            })
+            .filter_map(|cell| cell.value())
             .collect();
         for missing in 1..=9 {
             if present.contains(&missing) {
@@ -366,10 +360,7 @@ fn handle_blocking_col(board: &mut Board) -> bool {
         let present: Vec<u8> = board
             .col(col)
             .iter()
-            .filter_map(|cell| match **cell {
-                Cell::Known(val) => Some(val),
-                Cell::Possible(_) => None,
-            })
+            .filter_map(|cell| cell.value())
             .collect();
         for missing in 1..=9 {
             if present.contains(&missing) {
@@ -430,6 +421,9 @@ fn handle_blocking_col(board: &mut Board) -> bool {
     updated
 }
 
+// TODO: Handle advanced pointing, where if two groups both have only the same two rows or cols
+// avalible for a value then it's the same as normal pointing for both of those rows or cols
+
 /// If only a single row or col in a group contains cells with a possible number, remove that
 /// possible number from all cells in that row or col outside the group
 /// This strategy is called pointing pairs and tripples
@@ -441,10 +435,7 @@ fn handle_pointing(board: &mut Board) -> bool {
             let present: Vec<u8> = board
                 .group(group_row, group_col)
                 .iter()
-                .filter_map(|cell| match **cell {
-                    Cell::Known(val) => Some(val),
-                    Cell::Possible(_) => None,
-                })
+                .filter_map(|cell| cell.value())
                 .collect();
 
             for missing in 1..=9 {
@@ -528,13 +519,7 @@ fn handle_pointing(board: &mut Board) -> bool {
 fn handle_collection(mut cells: Vec<&mut Cell>) -> bool {
     let mut updated = false;
     // Get a list of all values currently known in the collection
-    let mut present: Vec<u8> = cells
-        .iter()
-        .filter_map(|cell| match **cell {
-            Cell::Known(val) => Some(val),
-            Cell::Possible(_) => None,
-        })
-        .collect();
+    let mut present: Vec<u8> = cells.iter().filter_map(|cell| cell.value()).collect();
     // Remove the known present values from the list of possible values for all cells in this
     // collection
     for cell in &mut cells {
